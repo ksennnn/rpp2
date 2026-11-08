@@ -1,13 +1,13 @@
-FROM python:3.11-slim AS builder
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --prefix=/install -r requirements.txt
+FROM python:3.12-slim
 
-FROM python:3.11-slim
-WORKDIR /app
-COPY --from=builder /install /usr/local
+WORKDIR /code
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
-RUN useradd -m appuser && chown -R appuser /app
-USER appuser
-EXPOSE 8080
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "web.app:app"]
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main_async:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -1,14 +1,135 @@
-name: library_app
-
 services:
-  web:
-    build: .
-    ports:
-      - "8080:8080"
+  # PostgreSQL
+  db:
+    image: postgres:16
     environment:
-      - PORT=8080
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab
+      POSTGRES_DB: flights
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      test:
+        - CMD-SHELL
+        - pg_isready -U lab -d flights
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  # Поставщик №1
+  supplier1:
+    build: .
+    command:
+      uvicorn app.supplier:app
+      --host 0.0.0.0
+      --port 8101
+    environment:
+      SUPPLIER_ID: "1"
+      MEAN_MS: "300"
+      ERROR_PCT: "5"
+      SLOW_PCT: "0"
+      FLIGHTS_PER_DAY: "500"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8101/health')"
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  # Поставщик №2
+  supplier2:
+    build: .
+    command:
+      uvicorn app.supplier:app
+      --host 0.0.0.0
+      --port 8102
+    environment:
+      SUPPLIER_ID: "2"
+      MEAN_MS: "500"
+      ERROR_PCT: "5"
+      SLOW_PCT: "0"
+      FLIGHTS_PER_DAY: "500"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8102/health')"
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  # Поставщик №3
+  supplier3:
+    build: .
+    command:
+      uvicorn app.supplier:app
+      --host 0.0.0.0
+      --port 8103
+    environment:
+      SUPPLIER_ID: "3"
+      MEAN_MS: "800"
+      ERROR_PCT: "5"
+      SLOW_PCT: "10"
+      FLIGHTS_PER_DAY: "500"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8103/health')"
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  # Главный сервис поиска
+  search:
+    build: .
+    command:
+      uvicorn app.main_async:app --host 0.0.0.0 --port 8000 --workers 1
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://lab:lab@db:5432/flights
+      SUPPLIER_1: http://supplier1:8101
+      SUPPLIER_2: http://supplier2:8102
+      SUPPLIER_3: http://supplier3:8103
+    volumes:
+      - ./profiles:/profiles
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    depends_on:
+      db:
+        condition: service_healthy
+      supplier1:
+        condition: service_healthy
+      supplier2:
+        condition: service_healthy
+      supplier3:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  # Контейнер для нагрузки
+  loadtest:
+    build: .
+    profiles:
+      - tools
+    entrypoint:
+      - python
+      - load_test.py
+    depends_on:
+      search:
+        condition: service_healthy
+volumes:
+  pgdata:

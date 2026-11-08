@@ -1,2 +1,8 @@
-flask
-gunicorn
+fastapi
+uvicorn[standard]
+requests
+httpx
+SQLAlchemy[asyncio]>=2.0
+psycopg[binary]
+asyncpg
+py-spy
