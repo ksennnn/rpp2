@@ -1,0 +1,19 @@
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+COPY worker/requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+FROM python:3.12-slim
+
+RUN useradd --create-home app
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY common ./common
+COPY worker/*.py ./
+
+USER app
+
+CMD ["python", "main.py"]
