@@ -52,7 +52,7 @@ async def lifespan(app):
     task.cancel()
     await connection.close()
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/stores")
 async def all_stores():

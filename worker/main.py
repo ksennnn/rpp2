@@ -114,7 +114,8 @@ async def main():
         await conn.run_sync(Base.metadata.create_all)
 
     conn = await connect()
-    ch = await conn.channel(publisher_confirms=True, prefetch_count=1)
+    ch = await conn.channel(publisher_confirms=True)
+    await ch.set_qos(prefetch_count=1)
 
     op_ex, q = await declare_operations(ch)
     event_ex, _ = await declare_events(ch, "notifier.events")

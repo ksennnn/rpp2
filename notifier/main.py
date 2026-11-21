@@ -59,7 +59,7 @@ async def lifespan(app):
     task.cancel()
     await connection.close()
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/notifications")
 async def get_notifications(customer_id: str):
